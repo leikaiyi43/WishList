@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="secondary_text">@color/grey600</color>
+    <color name="dialog_second_button_text_color">@color/grey600</color>
+    <color name="dialog_main_button_text_color">@color/blue500</color>
+    <color name="primary_text">@color/grey1000</color>
+    <color name="completed">#d0f8ce</color>
+
+</resources>
