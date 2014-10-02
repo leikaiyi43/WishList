@@ -1,8 +1,11 @@
 package org.kaiyi.wishlist.database;
 
 import android.content.ContentValues;
+import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.support.v4.content.CursorLoader;
+import android.support.v4.content.Loader;
 
 import org.kaiyi.wishlist.pojo.ShopWishItem;
 

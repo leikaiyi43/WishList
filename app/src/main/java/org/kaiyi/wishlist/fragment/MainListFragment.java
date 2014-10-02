@@ -1,11 +1,18 @@
 package org.kaiyi.wishlist.fragment;
 
 
+import android.app.AlertDialog;
 import android.content.Context;
-import android.content.res.Resources;
+import android.database.ContentObserver;
 import android.database.Cursor;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.v4.app.ListFragment;
+import android.support.v4.app.LoaderManager;
+import android.support.v4.content.CursorLoader;
+import android.support.v4.content.Loader;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -15,7 +22,6 @@ import android.widget.Spinner;
 import android.widget.TextView;
 
 import org.kaiyi.wishlist.R;
-import org.kaiyi.wishlist.database.WishDbDao;
 import org.kaiyi.wishlist.database.WishListDbHelper;
 import org.kaiyi.wishlist.pojo.ShopWishItem;
 import org.kaiyi.wishlist.utils.Constant;
@@ -23,7 +29,7 @@ import org.kaiyi.wishlist.utils.Constant;
 /**
  * Created by kaiyi on 9/7/14.
  */
-public class MainListFragment extends ListFragment implements EditShopDialog.EditShopDialogEvent {
+public class MainListFragment extends ListFragment implements EditShopDialog.EditShopDialogEvent, LoaderManager.LoaderCallbacks<Cursor> {
 
     private static final String TAG = MainListFragment.class.getName();
 
@@ -32,6 +38,12 @@ public class MainListFragment extends ListFragment implements EditShopDialog.Edi
     protected Boolean isCompleted;
     protected Spinner mOperateSpinner;
     protected EditShopDialog mEditShopDialog;
+
+    private int mfilter;
+//    private int size = 5;
+//    private int page = 0;
+
+    private ItemsObserver mItemsObserver;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -44,22 +56,79 @@ public class MainListFragment extends ListFragment implements EditShopDialog.Edi
         super.onActivityCreated(savedInstanceState);
 
         mDbHelper = WishListDbHelper.getInstance(getActivity());
-        mAdapter = new WishListAdapter(getActivity(), WishDbDao.queryList(mDbHelper, null));
+
+
+        mAdapter = new WishListAdapter(getActivity(), null);
         setListAdapter(mAdapter);
+
+        getLoaderManager().initLoader(Constant.LOADER_ID.LOAD_ITEMS_ALL, null, this);
+
     }
 
     @Override
     public void onItemChanged(ShopWishItem oldItem, ShopWishItem newItem) {
-        dataChanged();
     }
 
     @Override
     public void onItemDelete(ShopWishItem oldItem) {
-        dataChanged();
     }
 
     @Override
     public void onCancel() {
+
+    }
+
+    @Override
+    public Loader<Cursor> onCreateLoader(int loaderID, Bundle bundle) {
+
+        Uri uri = Uri.parse(Constant.URI.ITEMS);
+        Uri.Builder builder = uri.buildUpon();
+        uri = builder.build();
+
+        Log.i(TAG, uri.toString());
+
+        switch (loaderID) {
+            case Constant.LOADER_ID.LOAD_ITEMS_ALL:
+                return new CursorLoader(
+                        getActivity(),
+                        uri,
+                        WishListDbHelper.WishListEntry.SHOP_ITEM_PROJECTION,
+                        null,
+                        null,
+                        null
+                );
+            case Constant.LOADER_ID.LOAD_ITEMS_COMPLETED:
+                return new CursorLoader(
+                        getActivity(),
+                        uri,
+                        WishListDbHelper.WishListEntry.SHOP_ITEM_PROJECTION,
+                        "is_completed = 1",
+                        null,
+                        null
+                );
+            case Constant.LOADER_ID.LOAD_ITEMS_NOT_COMPLETED:
+                return new CursorLoader(
+                        getActivity(),
+                        uri,
+                        WishListDbHelper.WishListEntry.SHOP_ITEM_PROJECTION,
+                        "is_completed = 0",
+                        null,
+                        null
+                );
+
+            default:
+                return null;
+
+        }
+    }
+
+    @Override
+    public void onLoadFinished(Loader<Cursor> cursorLoader, Cursor cursor) {
+        mAdapter.changeCursor(cursor);
+    }
+
+    @Override
+    public void onLoaderReset(Loader<Cursor> cursorLoader) {
 
     }
 
@@ -111,15 +180,33 @@ public class MainListFragment extends ListFragment implements EditShopDialog.Edi
 
     }
 
-    public void dataChanged() {
-        mAdapter.changeCursor(WishDbDao.queryList(mDbHelper, isCompleted));
-        mAdapter.notifyDataSetChanged();
+    public void loadList() {
+        loadList(mfilter);
     }
 
-    public void dataChanged(Boolean completed) {
-        isCompleted = completed;
-        mAdapter.changeCursor(WishDbDao.queryList(mDbHelper, completed));
-        mAdapter.notifyDataSetChanged();
+    public void loadList(int filter) {
+        mfilter = filter;
+        LoaderManager manager = getLoaderManager();
+        int loaderId = 0;
+
+        switch (filter) {
+            case Constant.FILTER.NON:
+                loaderId = Constant.LOADER_ID.LOAD_ITEMS_ALL;
+                break;
+            case Constant.FILTER.COMPLETED:
+                loaderId = Constant.LOADER_ID.LOAD_ITEMS_COMPLETED;
+                break;
+            case Constant.FILTER.NOT_COMPLETED:
+                loaderId = Constant.LOADER_ID.LOAD_ITEMS_NOT_COMPLETED;
+                break;
+        }
+
+        if (manager.getLoader(loaderId) != null) {
+            manager.restartLoader(loaderId, null, this);
+        } else {
+            manager.initLoader(loaderId, null, this);
+        }
+
     }
 
     @Override
@@ -137,5 +224,35 @@ public class MainListFragment extends ListFragment implements EditShopDialog.Edi
         dialog.show(getFragmentManager(), MainListFragment.class.getName());
 
         super.onListItemClick(l, v, position, id);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+
+        mItemsObserver = new ItemsObserver(new Handler());
+        getActivity().getContentResolver().registerContentObserver(
+                Uri.parse(Constant.URI.ITEMS),
+                true,
+                mItemsObserver);
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        getActivity().getContentResolver().unregisterContentObserver(mItemsObserver);
+    }
+
+    private class ItemsObserver extends ContentObserver {
+
+        public ItemsObserver(Handler handler) {
+            super(handler);
+        }
+
+        @Override
+        public void onChange(boolean selfChange) {
+            super.onChange(selfChange);
+            loadList();
+        }
     }
 }

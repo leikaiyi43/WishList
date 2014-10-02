@@ -16,6 +16,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <provider
+            android:authorities="org.kaiyi.wishlist.provider"
+            android:name="org.kaiyi.wishlist.provider.WLProvider"
+            android:exported="false"
+            android:syncable="true"
+        />
+
     </application>
 
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>

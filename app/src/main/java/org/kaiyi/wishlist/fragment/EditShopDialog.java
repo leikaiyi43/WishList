@@ -2,6 +2,8 @@ package org.kaiyi.wishlist.fragment;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.content.ContentUris;
+import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.DialogFragment;
 import android.view.View;
@@ -73,7 +75,10 @@ public class EditShopDialog extends DialogFragment implements View.OnClickListen
     public void onClick(View v) {
         int id = v.getId();
         if (id == R.id.btn_delete) {
-            WishDbDao.delete(mHelper, mItem.getId());
+
+            // send delete request to provider
+            Uri uri = ContentUris.withAppendedId(Uri.parse(Constant.URI.ITEMS), mItem.getId());
+            getActivity().getContentResolver().delete(uri, null, null);
 
             if (mEvent != null) {
                 mEvent.onItemDelete(mItem);
@@ -95,7 +100,9 @@ public class EditShopDialog extends DialogFragment implements View.OnClickListen
             ShopWishItem item = new ShopWishItem(content, price);
             item.setCompleted(mIsCompleted);
             item.setId(mItem.getId());
-            WishDbDao.updateShopItem(mHelper, item);
+
+            Uri uri = ContentUris.withAppendedId(Uri.parse(Constant.URI.ITEMS), mItem.getId());
+            getActivity().getContentResolver().update(uri, item.getValues(), null, null);
 
             if (mEvent != null) {
                 mEvent.onItemChanged(mItem, item);

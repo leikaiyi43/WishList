@@ -1,10 +1,9 @@
 package org.kaiyi.wishlist;
 
-import android.app.Activity;
-import android.app.DialogFragment;
-import android.app.Fragment;
 import android.database.sqlite.SQLiteDatabase;
+import android.net.Uri;
 import android.os.Bundle;
+import android.support.v4.app.DialogFragment;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
@@ -12,15 +11,15 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.ArrayAdapter;
 import android.widget.SpinnerAdapter;
-import android.widget.Toast;
 
 import org.kaiyi.wishlist.database.WishListDbHelper;
 import org.kaiyi.wishlist.fragment.AddShopWishDialogFragment;
 import org.kaiyi.wishlist.fragment.MainListFragment;
 import org.kaiyi.wishlist.pojo.WishItem;
+import org.kaiyi.wishlist.utils.Constant;
 
 
-public class MainListActivity extends ActionBarActivity implements AddShopWishDialogFragment.AddWishDialogListener, ActionBar.OnNavigationListener{
+public class MainListActivity extends ActionBarActivity implements AddShopWishDialogFragment.AddWishDialogListener, ActionBar.OnNavigationListener {
 
     private static final String TAG = MainListActivity.class.getName();
 
@@ -42,6 +41,7 @@ public class MainListActivity extends ActionBarActivity implements AddShopWishDi
                 android.R.layout.simple_spinner_dropdown_item);
         getSupportActionBar().setListNavigationCallbacks(mSpinnerAdapter, this);
         getSupportActionBar().setNavigationMode(ActionBar.NAVIGATION_MODE_LIST);
+        getSupportActionBar().setDisplayShowTitleEnabled(false);
 
         dbHelper = WishListDbHelper.getInstance(this);
 
@@ -64,8 +64,8 @@ public class MainListActivity extends ActionBarActivity implements AddShopWishDi
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
 
-        if(id == R.id.action_new) {
-            addShopWishDialogFragment.show(getFragmentManager(), "addShopWishDialog");
+        if (id == R.id.action_new) {
+            addShopWishDialogFragment.show(getSupportFragmentManager(), "addShopWishDialog");
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -73,10 +73,8 @@ public class MainListActivity extends ActionBarActivity implements AddShopWishDi
 
     @Override
     public void onDialogPositiveClick(DialogFragment dialog, WishItem item) {
-        SQLiteDatabase db = dbHelper.getWritableDatabase();
-        long id = db.insert(WishListDbHelper.WishListEntry.TABLE_NAME, null, item.getValues());
-        Log.d(TAG, "insert new item id = " + id);
-        mainListFragment.dataChanged();
+        Uri uri = getContentResolver().insert(Uri.parse(Constant.URI.ITEMS), item.getValues());
+        Log.d(TAG, "insert new item id = " + uri.getLastPathSegment());
     }
 
     @Override
@@ -87,16 +85,17 @@ public class MainListActivity extends ActionBarActivity implements AddShopWishDi
     @Override
     public boolean onNavigationItemSelected(int position, long itemId) {
         if (position == 0) {
-            mainListFragment.dataChanged(null);
+            mainListFragment.loadList(Constant.LOADER_ID.LOAD_ITEMS_ALL);
             return true;
         } else if (position == 1) {
-            mainListFragment.dataChanged(true);
+            mainListFragment.loadList(Constant.LOADER_ID.LOAD_ITEMS_COMPLETED);
             return true;
         } else if (position == 2) {
-            mainListFragment.dataChanged(false);
+            mainListFragment.loadList(Constant.LOADER_ID.LOAD_ITEMS_NOT_COMPLETED);
             return true;
         }
 
         return false;
     }
+
 }
